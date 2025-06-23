@@ -10,7 +10,10 @@ const messageSchema = new mongoose.Schema(
     receiverId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+    },
+    groupId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Group",
     },
     text: {
       type: String,
@@ -21,6 +24,17 @@ const messageSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Add validation to ensure either receiverId OR groupId is provided
+messageSchema.pre('validate', function(next) {
+  if (!this.receiverId && !this.groupId) {
+    return next(new Error('Message must have either a receiverId or a groupId'));
+  }
+  if (this.receiverId && this.groupId) {
+    return next(new Error('Message cannot have both a receiverId and a groupId'));
+  }
+  next();
+});
 
 const Message = mongoose.model("Message", messageSchema);
 
