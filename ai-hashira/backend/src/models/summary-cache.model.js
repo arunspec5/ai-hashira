@@ -2,10 +2,20 @@ import mongoose from "mongoose";
 
 const summaryCacheSchema = new mongoose.Schema(
   {
+    // Either groupId or threadId will be present, but not both
     groupId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Group",
-      required: true,
+      required: function() {
+        return !this.threadId;
+      },
+    },
+    threadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message", // Parent message ID
+      required: function() {
+        return !this.groupId;
+      },
     },
     timeRange: {
       type: String,
@@ -44,12 +54,20 @@ const summaryCacheSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Create a compound index for cache lookup
+// Create compound indexes for cache lookup
+// Index for group summaries
 summaryCacheSchema.index({ 
   groupId: 1, 
   timeRange: 1, 
   detailLevel: 1,
-  // Convert topics array to a string for indexing
+  topics: 1
+});
+
+// Index for thread summaries
+summaryCacheSchema.index({ 
+  threadId: 1, 
+  timeRange: 1, 
+  detailLevel: 1,
   topics: 1
 });
 
