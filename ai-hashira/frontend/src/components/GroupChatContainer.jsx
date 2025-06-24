@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useGroupChatStore } from "../store/useGroupChatStore";
 import { useAuthStore } from "../store/useAuthStore";
+import { useTopicStore } from "../store/useTopicStore";
 import { formatMessageTime } from "../lib/utils";
 import { MessageCircleReply } from "lucide-react";
 
@@ -8,6 +9,9 @@ import GroupChatHeader from "./GroupChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import GroupMembersList from "./GroupMembersList";
+import TopicPanel from "./TopicPanel";
+import TopicMessageView from "./TopicMessageView";
+import AISummaryPanel from "./AISummaryPanel";
 
 const GroupChatContainer = () => {
   const {
@@ -21,12 +25,37 @@ const GroupChatContainer = () => {
     stopTyping,
     typingUsers,
     threadCounts,
-    getThreadCount
+    getThreadCount,
+    isAISummaryOpen
   } = useGroupChatStore();
   
   const { authUser } = useAuthStore();
+  const { isTopicPanelOpen, selectedTopic, topics, closeTopicPanel, subscribeToTopicEvents, unsubscribeFromTopicEvents } = useTopicStore();
   const messageEndRef = useRef(null);
   const [showMembersList, setShowMembersList] = useState(false);
+  
+  // Create a map of message IDs to their topics for quick lookup
+  const messageTopicsMap = useMemo(() => {
+    const map = new Map();
+    
+    if (!topics || topics.length === 0) return map;
+    
+    topics.forEach(topic => {
+      if (topic.messageIds && topic.messageIds.length > 0) {
+        topic.messageIds.forEach(messageId => {
+          if (!map.has(messageId)) {
+            map.set(messageId, []);
+          }
+          map.get(messageId).push({
+            id: topic._id,
+            label: topic.label
+          });
+        });
+      }
+    });
+    
+    return map;
+  }, [topics]);
   
   // Get messages for the selected group
   const rawMessages = groupMessages[selectedGroup?._id] || [];
@@ -70,14 +99,16 @@ const GroupChatContainer = () => {
   useEffect(() => {
     if (selectedGroup) {
       subscribeToGroupMessages();
+      subscribeToTopicEvents();
     }
     
     return () => {
       if (selectedGroup) {
         unsubscribeFromGroupMessages();
+        unsubscribeFromTopicEvents();
       }
     };
-  }, [selectedGroup?._id, subscribeToGroupMessages, unsubscribeFromGroupMessages]);
+  }, [selectedGroup?._id, subscribeToGroupMessages, unsubscribeFromGroupMessages, subscribeToTopicEvents, unsubscribeFromTopicEvents]);
   
   // Separate effect to fetch thread counts when messages change
   useEffect(() => {
@@ -142,10 +173,11 @@ const GroupChatContainer = () => {
   }
   
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <GroupChatHeader onShowMembers={() => setShowMembersList(true)} />
-      
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex flex-1 h-full">
+      <div className={`flex flex-col flex-1 ${(isTopicPanelOpen || isAISummaryOpen) ? 'w-2/3' : 'w-full'}`}>
+        <GroupChatHeader onShowMembers={() => setShowMembersList(true)} />
+        
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
             <p className="mb-2">No messages yet</p>
@@ -189,7 +221,29 @@ const GroupChatContainer = () => {
                   )}
                   {message.text && <p>{message.text}</p>}
                 </div>
-                <div className="chat-footer opacity-50 text-xs mt-1">
+                <div className="chat-footer opacity-50 text-xs mt-1 flex flex-col gap-1">
+                  {/* Topic badges */}
+                  {messageTopicsMap.has(message._id) && (
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {messageTopicsMap.get(message._id).map(topic => (
+                        <span 
+                          key={topic.id}
+                          className="badge badge-sm badge-primary cursor-pointer"
+                          onClick={() => {
+                            const fullTopic = topics.find(t => t._id === topic.id);
+                            if (fullTopic) {
+                              useTopicStore.getState().setSelectedTopic(fullTopic);
+                              useTopicStore.getState().openTopicPanel();
+                            }
+                          }}
+                        >
+                          {topic.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Thread reply button */}
                   <button 
                     onClick={() => useGroupChatStore.getState().openThread(message)}
                     className="hover:underline flex items-center gap-1"
@@ -223,6 +277,20 @@ const GroupChatContainer = () => {
           onTypingStop={handleTypingStop}
         />
       </div>
+      </div>
+      
+      {/* Side Panels */}
+      {isTopicPanelOpen && (
+        selectedTopic ? (
+          <TopicMessageView />
+        ) : (
+          <TopicPanel onClose={closeTopicPanel} />
+        )
+      )}
+      
+      {isAISummaryOpen && (
+        <AISummaryPanel onClose={() => useGroupChatStore.getState().toggleAISummary()} />
+      )}
       
       {/* Group members list modal */}
       <GroupMembersList 

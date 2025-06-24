@@ -1,8 +1,16 @@
 import Group from "../models/group.model.js";
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
+import TopicSettings from "../models/topic-settings.model.js";
+import TopicClusteringService from "../services/topic-clustering.service.js";
 import cloudinary from "../lib/cloudinary.js";
 import { io, getReceiverSocketId, emitToGroup } from "../lib/socket.js";
+
+// Initialize Topic Clustering service
+const topicService = new TopicClusteringService({
+  region: process.env.AWS_REGION,
+  profile: process.env.AWS_PROFILE || 'default'
+});
 
 // Create a new group
 export const createGroup = async (req, res) => {
@@ -428,6 +436,23 @@ export const sendGroupMessage = async (req, res) => {
       emitToGroup(id, "newThreadMessage", populatedMessage);
     } else {
       emitToGroup(id, "newGroupMessage", populatedMessage);
+      
+      // Process message for topic classification if it's not a thread reply
+      try {
+        // Check if topic clustering is enabled for this group
+        const settings = await TopicSettings.findOne({ groupId: id });
+        
+        if (settings && settings.enabled) {
+          // Process the new message for topic classification
+          // This runs asynchronously and doesn't block the response
+          topicService.processNewMessages(id).catch(error => {
+            console.error('Error processing message for topic classification:', error);
+          });
+        }
+      } catch (error) {
+        console.error('Error checking topic settings:', error);
+        // Don't block the message sending if topic processing fails
+      }
     }
 
     res.status(201).json(populatedMessage);

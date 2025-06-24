@@ -97,4 +97,16 @@ export function emitToGroup(groupId, event, data) {
   io.to(`group:${groupId}`).emit(event, data);
 }
 
+// Helper function to emit topic updates to all members of a group
+export function emitTopicUpdate(groupId, topics) {
+  // Emit to all clients in the group room
+  io.to(`group:${groupId}`).emit('topicsUpdated', { groupId, topics });
+}
+
+// Helper function to emit new topic message to all members of a group
+export function emitTopicMessageUpdate(groupId, topicId, message) {
+  // Emit to all clients in the group room
+  io.to(`group:${groupId}`).emit('topicMessageAdded', { groupId, topicId, message });
+}
+
 export { io, app, server };
