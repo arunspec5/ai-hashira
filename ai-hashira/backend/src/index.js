@@ -11,6 +11,7 @@ import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
 import groupRoutes from "./routes/group.route.js";
 import threadRoutes from "./routes/thread.route.js";
+import summaryRoutes from "./routes/summary.route.js";
 import { app, server } from "./lib/socket.js";
 
 dotenv.config();
@@ -31,6 +32,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/threads", threadRoutes);
+app.use("/api", summaryRoutes); // Summary routes
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
