@@ -15,7 +15,7 @@ const Sidebar = () => {
     setSelectedGroup, 
     isGroupsLoading 
   } = useGroupChatStore();
-  const { onlineUsers, authUser } = useAuthStore();
+  const { onlineUsers = [], authUser } = useAuthStore();
   
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [activeTab, setActiveTab] = useState("users"); // "users" or "groups"
@@ -26,9 +26,12 @@ const Sidebar = () => {
     getGroups();
   }, [getUsers, getGroups]);
 
+  // Ensure users is always an array, even if API call fails
+  const safeUsers = Array.isArray(users) ? users : [];
+  
   const filteredUsers = showOnlineOnly
-    ? users.filter((user) => onlineUsers.includes(user._id))
-    : users;
+    ? safeUsers.filter((user) => onlineUsers && onlineUsers.includes(user._id))
+    : safeUsers;
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);
@@ -145,7 +148,7 @@ const Sidebar = () => {
       {/* Groups list */}
       {activeTab === "groups" && (
         <div className="overflow-y-auto w-full py-3">
-          {groups.map((group) => (
+          {Array.isArray(groups) && groups.map((group) => (
             <button
               key={group._id}
               onClick={() => handleGroupSelect(group)}
