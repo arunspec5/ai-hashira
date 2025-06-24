@@ -363,10 +363,10 @@ export const getGroupMessages = async (req, res) => {
 export const sendGroupMessage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { text, image } = req.body;
+    const { text, image, parentId, isThreadReply } = req.body;
     const senderId = req.user._id;
     
-    console.log('Sending message to group:', { id, text, image: !!image, senderId });
+    console.log('Sending message to group:', { id, text, image: !!image, senderId, parentId, isThreadReply });
 
     const group = await Group.findById(id);
 
@@ -377,6 +377,14 @@ export const sendGroupMessage = async (req, res) => {
     // Check if user is a member of the group
     if (!group.members.some(memberId => memberId.toString() === senderId.toString())) {
       return res.status(403).json({ error: "You are not a member of this group" });
+    }
+
+    // If this is a thread reply, verify the parent message exists
+    if (parentId) {
+      const parentMessage = await Message.findById(parentId);
+      if (!parentMessage) {
+        return res.status(404).json({ error: "Parent message not found" });
+      }
     }
 
     let imageUrl;
@@ -397,19 +405,27 @@ export const sendGroupMessage = async (req, res) => {
       groupId: id,
       text,
       image: imageUrl,
+      parentId,
+      isThreadReply
     });
 
     await newMessage.save();
 
-    // Update group's lastMessage
-    group.lastMessage = newMessage._id;
-    await group.save();
+    // Only update group's lastMessage if this is not a thread reply
+    if (!isThreadReply) {
+      group.lastMessage = newMessage._id;
+      await group.save();
+    }
 
     // Populate sender info for response
     const populatedMessage = await Message.findById(newMessage._id).populate("senderId", "fullName profilePic");
 
     // Notify all group members about the new message
-    emitToGroup(id, "newGroupMessage", populatedMessage);
+    if (isThreadReply) {
+      emitToGroup(id, "newThreadMessage", populatedMessage);
+    } else {
+      emitToGroup(id, "newGroupMessage", populatedMessage);
+    }
 
     res.status(201).json(populatedMessage);
   } catch (error) {

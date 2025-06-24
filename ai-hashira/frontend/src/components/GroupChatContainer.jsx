@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGroupChatStore } from "../store/useGroupChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
+import { MessageCircleReply } from "lucide-react";
 
 import GroupChatHeader from "./GroupChatHeader";
 import MessageInput from "./MessageInput";
@@ -68,7 +69,20 @@ const GroupChatContainer = () => {
     if (selectedGroup) {
       console.log('GroupChatContainer handleSendMessage:', { text, image: !!image });
       try {
-        await sendGroupMessage({ text, image });
+        // Check if we're replying to a thread
+        const { selectedThreadParent } = useGroupChatStore.getState();
+        if (selectedThreadParent) {
+          // This is a thread reply
+          await sendGroupMessage({ 
+            text, 
+            image, 
+            parentId: selectedThreadParent._id,
+            isThreadReply: true 
+          });
+        } else {
+          // Normal message
+          await sendGroupMessage({ text, image });
+        }
       } catch (error) {
         console.error('Error sending group message:', error);
       }
@@ -89,16 +103,24 @@ const GroupChatContainer = () => {
   
   if (isMessagesLoading) {
     return (
-      <div className="flex-1 flex flex-col overflow-auto">
+      <div className="flex-1 flex flex-col h-full">
         <GroupChatHeader />
-        <MessageSkeleton />
-        <MessageInput />
+        <div className="flex-1 overflow-y-auto">
+          <MessageSkeleton />
+        </div>
+        <div className="mt-auto sticky bottom-0 bg-base-100 border-t border-base-300">
+          <MessageInput 
+            onSendMessage={handleSendMessage}
+            onTypingStart={handleTypingStart}
+            onTypingStop={handleTypingStop}
+          />
+        </div>
       </div>
     );
   }
   
   return (
-    <div className="flex-1 flex flex-col overflow-auto">
+    <div className="flex-1 flex flex-col h-full">
       <GroupChatHeader onShowMembers={() => setShowMembersList(true)} />
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -145,6 +167,15 @@ const GroupChatContainer = () => {
                   )}
                   {message.text && <p>{message.text}</p>}
                 </div>
+                <div className="chat-footer opacity-50 text-xs mt-1">
+                  <button 
+                    onClick={() => useGroupChatStore.getState().openThread(message)}
+                    className="hover:underline flex items-center gap-1"
+                  >
+                    <MessageCircleReply size={14} />
+                    Reply
+                  </button>
+                </div>
               </div>
             );
           })
@@ -161,11 +192,13 @@ const GroupChatContainer = () => {
         <div ref={messageEndRef} />
       </div>
       
-      <MessageInput 
-        onSendMessage={handleSendMessage}
-        onTypingStart={handleTypingStart}
-        onTypingStop={handleTypingStop}
-      />
+      <div className="mt-auto sticky bottom-0 bg-base-100 border-t border-base-300">
+        <MessageInput 
+          onSendMessage={handleSendMessage}
+          onTypingStart={handleTypingStart}
+          onTypingStop={handleTypingStop}
+        />
+      </div>
       
       {/* Group members list modal */}
       <GroupMembersList 

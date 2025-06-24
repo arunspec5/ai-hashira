@@ -21,6 +21,14 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    parentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+    },
+    isThreadReply: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

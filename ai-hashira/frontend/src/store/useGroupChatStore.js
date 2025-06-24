@@ -7,9 +7,13 @@ export const useGroupChatStore = create((set, get) => ({
   groups: [],
   selectedGroup: null,
   groupMessages: {},
+  threadMessages: {},
+  selectedThreadParent: null,
+  isThreadOpen: false,
   typingUsers: {},
   isGroupsLoading: false,
   isMessagesLoading: false,
+  isThreadMessagesLoading: false,
   isCreatingGroup: false,
 
   getGroups: async () => {
@@ -246,6 +250,7 @@ export const useGroupChatStore = create((set, get) => ({
     if (!socket) return;
 
     socket.on("newGroupMessage", get().handleNewGroupMessage);
+    socket.on("newThreadMessage", get().handleNewThreadMessage);
   },
 
   unsubscribeFromGroupMessages: () => {
@@ -253,6 +258,111 @@ export const useGroupChatStore = create((set, get) => ({
     if (!socket) return;
 
     socket.off("newGroupMessage");
+    socket.off("newThreadMessage");
+  },
+
+  // Thread functionality
+  openThread: (parentMessage) => {
+    console.log("Opening thread for message:", parentMessage);
+    set({ 
+      selectedThreadParent: parentMessage,
+      isThreadOpen: true 
+    });
+    get().getThreadMessages(parentMessage._id);
+  },
+
+  closeThread: () => {
+    set({ 
+      selectedThreadParent: null,
+      isThreadOpen: false 
+    });
+  },
+
+  getThreadMessages: async (parentId) => {
+    set({ isThreadMessagesLoading: true });
+    try {
+      console.log("Fetching thread messages for parentId:", parentId);
+      
+      // First try to get any existing thread messages from the store
+      const existingMessages = get().threadMessages[parentId] || [];
+      if (existingMessages.length > 0) {
+        console.log("Using existing thread messages from store");
+        return;
+      }
+      
+      // If no messages in store, fetch from API
+      const res = await axiosInstance.get(`/api/threads/${parentId}`);
+      console.log("Thread messages response:", res.data);
+      
+      set(state => ({
+        threadMessages: {
+          ...state.threadMessages,
+          [parentId]: res.data
+        }
+      }));
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+      // Initialize with empty array to prevent repeated failed API calls
+      set(state => ({
+        threadMessages: {
+          ...state.threadMessages,
+          [parentId]: []
+        }
+      }));
+      toast.error("Could not load thread messages");
+    } finally {
+      set({ isThreadMessagesLoading: false });
+    }
+  },
+
+  sendThreadReply: async (messageData) => {
+    const { selectedThreadParent, selectedGroup } = get();
+    if (!selectedThreadParent || !selectedGroup) return;
+
+    try {
+      const threadData = {
+        ...messageData,
+        parentId: selectedThreadParent._id,
+        isThreadReply: true
+      };
+      
+      console.log("Sending thread reply:", threadData);
+      const res = await axiosInstance.post(`/api/groups/${selectedGroup._id}/messages`, threadData);
+      console.log("Thread reply response:", res.data);
+      
+      // Add to thread messages
+      set(state => ({
+        threadMessages: {
+          ...state.threadMessages,
+          [selectedThreadParent._id]: [
+            ...(state.threadMessages[selectedThreadParent._id] || []),
+            res.data
+          ]
+        }
+      }));
+      
+      return res.data;
+    } catch (error) {
+      console.error("Error sending thread reply:", error);
+      toast.error(error.response?.data?.message || "Failed to send reply");
+    }
+  },
+
+  handleNewThreadMessage: (message) => {
+    const { selectedThreadParent } = get();
+    if (!selectedThreadParent || !message.parentId) return;
+
+    if (message.parentId === selectedThreadParent._id) {
+      set(state => ({
+        threadMessages: {
+          ...state.threadMessages,
+          [selectedThreadParent._id]: [
+            ...(state.threadMessages[selectedThreadParent._id] || []),
+            message
+          ]
+        }
+      }));
+    }
   },
 
   // Typing indicator functionality

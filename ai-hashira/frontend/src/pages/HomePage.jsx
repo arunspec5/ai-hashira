@@ -7,10 +7,11 @@ import Sidebar from "../components/Sidebar";
 import NoChatSelected from "../components/NoChatSelected";
 import ChatContainer from "../components/ChatContainer";
 import GroupChatContainer from "../components/GroupChatContainer";
+import ThreadSidebar from "../components/ThreadSidebar";
 
 const HomePage = () => {
   const { selectedUser } = useChatStore();
-  const { selectedGroup, subscribeToGroupEvents, unsubscribeFromGroupEvents } = useGroupChatStore();
+  const { selectedGroup, subscribeToGroupEvents, unsubscribeFromGroupEvents, isThreadOpen } = useGroupChatStore();
   const { socket } = useAuthStore();
   
   // Subscribe to group events when socket is available
@@ -45,7 +46,12 @@ const HomePage = () => {
         <div className="bg-base-100 rounded-lg shadow-cl w-full max-w-6xl h-[calc(100vh-8rem)]">
           <div className="flex h-full rounded-lg overflow-hidden">
             <Sidebar />
-            {renderChatContainer()}
+            <div className="flex flex-1 overflow-hidden">
+              <div className={`flex-1 ${isThreadOpen ? 'border-r border-base-300' : ''}`}>
+                {renderChatContainer()}
+              </div>
+              {isThreadOpen && <ThreadSidebar />}
+            </div>
           </div>
         </div>
       </div>

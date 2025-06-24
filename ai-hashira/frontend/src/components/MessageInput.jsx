@@ -3,7 +3,7 @@ import { useChatStore } from "../store/useChatStore";
 import { Image, Send, X } from "lucide-react";
 import toast from "react-hot-toast";
 
-const MessageInput = ({ onSendMessage, onTypingStart, onTypingStop }) => {
+const MessageInput = ({ onSendMessage, onTypingStart, onTypingStop, isThreadReply }) => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [isSending, setIsSending] = useState(false);
