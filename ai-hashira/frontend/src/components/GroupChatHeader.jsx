@@ -5,7 +5,7 @@ import { useGroupChatStore } from "../store/useGroupChatStore";
 import GroupSettingsModal from "./GroupSettingsModal";
 
 const GroupChatHeader = ({ onShowMembers }) => {
-  const { selectedGroup, setSelectedGroup, toggleAISummary, isAISummaryOpen } = useGroupChatStore();
+  const { selectedGroup, setSelectedGroup, toggleAISummary, isAISummaryOpen, summaryMode } = useGroupChatStore();
   const { authUser } = useAuthStore();
   const [showMembers, setShowMembers] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -14,7 +14,7 @@ const GroupChatHeader = ({ onShowMembers }) => {
   
   return (
     <div className="p-2.5 border-b border-base-300">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-3">
           {/* Group Avatar */}
           <div className="avatar">
@@ -26,7 +26,7 @@ const GroupChatHeader = ({ onShowMembers }) => {
                   className="size-10 rounded-full"
                 />
               ) : (
-                <span className="text-xl font-bold">
+                <span className="text-xl font-bold flex items-center justify-center w-full h-full">
                   {selectedGroup?.name?.charAt(0).toUpperCase()}
                 </span>
               )}
@@ -34,8 +34,8 @@ const GroupChatHeader = ({ onShowMembers }) => {
           </div>
 
           {/* Group info */}
-          <div>
-            <h3 className="font-medium">{selectedGroup?.name}</h3>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-medium truncate">{selectedGroup?.name}</h3>
             <button 
               className="text-sm text-base-content/70 flex items-center gap-1"
               onClick={() => setShowMembers(!showMembers)}
@@ -60,9 +60,9 @@ const GroupChatHeader = ({ onShowMembers }) => {
           
           {/* AI Summary button */}
           <button 
-            className={`btn btn-ghost btn-sm btn-circle ${isAISummaryOpen ? 'text-primary' : ''}`}
-            title="AI Summary"
-            onClick={toggleAISummary}
+            className={`btn btn-ghost btn-sm btn-circle ${isAISummaryOpen && summaryMode === "group" ? 'text-primary' : ''}`}
+            title="Group AI Summary"
+            onClick={() => toggleAISummary("group")}
           >
             <Sparkles size={18} />
           </button>

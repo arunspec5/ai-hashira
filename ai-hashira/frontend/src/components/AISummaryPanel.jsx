@@ -5,7 +5,7 @@ import SummaryOptions from "./SummaryOptions";
 import { axiosInstance } from "../lib/axios";
 
 const AISummaryPanel = ({ onClose }) => {
-  const { selectedGroup, groupMessages } = useGroupChatStore();
+  const { selectedGroup, selectedThreadParent, summaryMode } = useGroupChatStore();
   const [summary, setSummary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -69,7 +69,11 @@ const AISummaryPanel = ({ onClose }) => {
 
   // Generate a summary of the conversation
   const generateSummary = async () => {
-    if (!selectedGroup) return;
+    if (summaryMode === "group" && !selectedGroup) return;
+    if (summaryMode === "thread" && !selectedThreadParent) return;
+    
+    console.log(`Generating summary for ${summaryMode} mode:`, 
+      summaryMode === "group" ? selectedGroup._id : selectedThreadParent._id);
     
     // Check rate limiting
     if (checkRateLimit()) return;
@@ -79,9 +83,18 @@ const AISummaryPanel = ({ onClose }) => {
     lastRequestTime.current = Date.now();
     
     try {
-      const response = await axiosInstance.post(`/groups/${selectedGroup._id}/summary`, {
+      // Determine which endpoint to use based on the mode
+      const endpoint = summaryMode === "group" 
+        ? `/groups/${selectedGroup._id}/summary` 
+        : `/threads/${selectedThreadParent._id}/summary`;
+      
+      console.log(`Making API request to: ${endpoint}`);
+      
+      const response = await axiosInstance.post(endpoint, {
         ...summaryOptions
       });
+      
+      console.log(`API response:`, response.data);
       
       // Update rate limit info from headers if available
       const rateLimitHeader = response.headers['x-ratelimit-remaining'];
@@ -96,6 +109,8 @@ const AISummaryPanel = ({ onClose }) => {
         const cachedTime = new Date(response.data.cachedAt).toLocaleTimeString();
         console.log(`Using cached summary from ${cachedTime}`);
       }
+      
+      // Note: Rate limit handling is now done in the specific API call sections
     } catch (err) {
       console.error("Error generating summary:", err);
       
@@ -112,8 +127,9 @@ const AISummaryPanel = ({ onClose }) => {
           // Forbidden - user not authorized
           setError(errorData.message || "You don't have permission to generate a summary for this group.");
         } else if (statusCode === 404) {
-          // Not found - group doesn't exist
-          setError(errorData.message || "The group was not found.");
+          // Not found - resource doesn't exist
+          setError(errorData.message || 
+            (summaryMode === "group" ? "The group was not found." : "The thread was not found."));
         } else if (statusCode === 429) {
           // Too many requests - rate limited
           setIsRateLimited(true);
@@ -142,12 +158,17 @@ const AISummaryPanel = ({ onClose }) => {
     }
   };
 
-  // Generate summary when the component mounts or options change
+  // Generate summary when the component mounts, options change, or summary mode changes
   useEffect(() => {
-    if (selectedGroup) {
+    if ((summaryMode === "group" && selectedGroup) || 
+        (summaryMode === "thread" && selectedThreadParent)) {
+      // Reset any previous error state when switching modes
+      setError(null);
+      setSummary("");
+      setIsLoading(true);
       generateSummary();
     }
-  }, [selectedGroup?._id, summaryOptions]);
+  }, [summaryMode, selectedGroup?._id, selectedThreadParent?._id, summaryOptions]);
 
   return (
     <div className="w-80 border-l border-base-300 flex flex-col h-full">
@@ -155,7 +176,9 @@ const AISummaryPanel = ({ onClose }) => {
       <div className="p-4 border-b border-base-300 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-primary" />
-          <h3 className="font-semibold">AI Summary</h3>
+          <h3 className="font-semibold">
+            {summaryMode === "group" ? "Group AI Summary" : "Thread AI Summary"}
+          </h3>
         </div>
         <div className="flex items-center gap-1">
           <button 

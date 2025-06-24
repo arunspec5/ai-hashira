@@ -11,6 +11,7 @@ export const useGroupChatStore = create((set, get) => ({
   selectedThreadParent: null,
   isThreadOpen: false,
   isAISummaryOpen: false,
+  summaryMode: "group", // Can be "group" or "thread"
   typingUsers: {},
   isGroupsLoading: false,
   isMessagesLoading: false,
@@ -295,19 +296,37 @@ export const useGroupChatStore = create((set, get) => ({
   closeThread: () => {
     set({ 
       selectedThreadParent: null,
-      isThreadOpen: false 
+      isThreadOpen: false,
+      // If summary is open and in thread mode, close it
+      isAISummaryOpen: get().isAISummaryOpen && get().summaryMode === "thread" ? false : get().isAISummaryOpen
     });
   },
 
   // AI Summary functionality
-  toggleAISummary: () => {
-    set(state => ({
-      isAISummaryOpen: !state.isAISummaryOpen
-    }));
+  toggleAISummary: (mode = "group") => {
+    set(state => {
+      // If summary is already open and we're switching modes, just change the mode
+      if (state.isAISummaryOpen && state.summaryMode !== mode) {
+        return {
+          isAISummaryOpen: true,
+          summaryMode: mode
+        };
+      }
+      
+      // Otherwise toggle the panel open/closed
+      return {
+        isAISummaryOpen: !state.isAISummaryOpen,
+        summaryMode: mode
+      };
+    });
   },
 
   closeAISummary: () => {
     set({ isAISummaryOpen: false });
+  },
+  
+  setSummaryMode: (mode) => {
+    set({ summaryMode: mode });
   },
   
   summaryPreferences: {

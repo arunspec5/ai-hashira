@@ -47,7 +47,31 @@ export class AWSBedrockService {
   }
   
   /**
-   * Create a well-structured prompt for the AI model
+   * Generate a summary of thread messages using AWS Bedrock
+   * @param {Array} messages - Array of thread messages (parent + replies)
+   * @param {Object} options - Options for summary generation
+   * @returns {Promise<string>} - Generated summary
+   */
+  async generateThreadSummary(messages, options = {}) {
+    const {
+      model = this.defaultModel,
+      timeRange = 'all',
+      topics = [],
+      detailLevel = 'moderate'
+    } = options;
+    
+    // Create a prompt for the AI model
+    const prompt = this.createThreadSummaryPrompt(messages, options);
+    
+    // Call AWS Bedrock API with retry logic
+    const response = await this.invokeModelWithRetry(model, prompt);
+    
+    // Process and return the summary
+    return this.processSummaryResponse(response, model);
+  }
+  
+  /**
+   * Create a well-structured prompt for the AI model for group chat summaries
    * @param {Array} messages - Array of chat messages
    * @param {Object} options - Options for summary generation
    * @returns {string} - Formatted prompt
@@ -120,6 +144,113 @@ Conversation:
       const truncatedMessages = this.truncateMessages(filteredMessages, this.tokenLimit - this.estimateTokens(instructions) - 100);
       
       prompt = instructions + truncatedMessages + "\n\nAssistant:";
+    }
+    
+    return prompt;
+  }
+  
+  /**
+   * Create a well-structured prompt for the AI model for thread summaries
+   * @param {Array} messages - Array of thread messages (parent + replies)
+   * @param {Object} options - Options for summary generation
+   * @returns {string} - Formatted prompt
+   */
+  createThreadSummaryPrompt(messages, options) {
+    const { detailLevel, topics, timeRange } = options;
+    
+    // Filter messages based on time range if specified
+    let filteredMessages = [...messages];
+    if (timeRange !== 'all') {
+      const now = new Date();
+      let startDate;
+      
+      switch (timeRange) {
+        case 'hour':
+          startDate = new Date(now.getTime() - 60 * 60 * 1000);
+          break;
+        case 'day':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+      }
+      
+      filteredMessages = messages.filter(msg => new Date(msg.createdAt) >= startDate);
+    }
+    
+    // Start building the prompt
+    let prompt = `Human: Please summarize the following thread conversation. `;
+    
+    // Add detail level instruction
+    if (detailLevel === "brief") {
+      prompt += "Provide a brief overview of the main points. ";
+    } else if (detailLevel === "detailed") {
+      prompt += "Provide a detailed summary with all key information. ";
+    } else {
+      prompt += "Provide a moderately detailed summary of the important points. ";
+    }
+    
+    // Add topic focus if specified
+    if (topics && topics.length > 0) {
+      prompt += `Focus particularly on these topics: ${topics.join(", ")}. `;
+    }
+    
+    // Add structure instructions
+    prompt += `
+Structure your summary with the following sections:
+1. Thread Topic - Summarize what this thread is about
+2. Key Points - Summarize the most important points in the discussion
+3. Questions & Answers - List any questions asked and answers provided
+4. Action Items - List any tasks or action items mentioned
+
+Thread Conversation:
+`;
+    
+    // Format messages - first message is the parent, rest are replies
+    if (filteredMessages.length > 0) {
+      const parentMessage = filteredMessages[0];
+      const parentSender = typeof parentMessage.senderId === 'object' ? parentMessage.senderId.fullName : 'User';
+      
+      prompt += `[PARENT] ${parentSender}: ${parentMessage.text || ''}`;
+      
+      // Add replies
+      if (filteredMessages.length > 1) {
+        prompt += "\n\n[REPLIES]\n";
+        
+        const replies = filteredMessages.slice(1);
+        const formattedReplies = replies.map(msg => {
+          const sender = typeof msg.senderId === 'object' ? msg.senderId.fullName : 'User';
+          return `[${new Date(msg.createdAt).toLocaleString()}] ${sender}: ${msg.text || ''}`;
+        }).join("\n");
+        
+        prompt += formattedReplies;
+      }
+    }
+    
+    prompt += "\n\nAssistant:";
+    
+    // Ensure the prompt doesn't exceed token limit
+    if (this.estimateTokens(prompt) > this.tokenLimit) {
+      // If too long, truncate messages but keep the instructions
+      const instructions = prompt.split("Thread Conversation:")[0] + "Thread Conversation:\n";
+      
+      // Always keep the parent message
+      const parentMessage = filteredMessages[0];
+      const parentSender = typeof parentMessage.senderId === 'object' ? parentMessage.senderId.fullName : 'User';
+      const parentFormatted = `[PARENT] ${parentSender}: ${parentMessage.text || ''}`;
+      
+      // Calculate remaining tokens for replies
+      const remainingTokens = this.tokenLimit - this.estimateTokens(instructions) - this.estimateTokens(parentFormatted) - 100;
+      
+      // Truncate replies if needed
+      if (filteredMessages.length > 1) {
+        const replies = filteredMessages.slice(1);
+        const truncatedReplies = this.truncateMessages(replies, remainingTokens);
+        prompt = instructions + parentFormatted + "\n\n[REPLIES]\n" + truncatedReplies + "\n\nAssistant:";
+      } else {
+        prompt = instructions + parentFormatted + "\n\nAssistant:";
+      }
     }
     
     return prompt;

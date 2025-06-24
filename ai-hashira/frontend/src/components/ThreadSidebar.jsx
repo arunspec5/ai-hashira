@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useGroupChatStore } from "../store/useGroupChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
-import { X, Send } from "lucide-react";
+import { X, Send, Sparkles } from "lucide-react";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
+import AISummaryPanel from "./AISummaryPanel";
 
 const ThreadSidebar = () => {
   const { 
@@ -12,7 +13,10 @@ const ThreadSidebar = () => {
     isThreadMessagesLoading, 
     closeThread,
     selectedGroup,
-    sendThreadReply
+    sendThreadReply,
+    toggleAISummary,
+    isAISummaryOpen,
+    summaryMode
   } = useGroupChatStore();
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -30,16 +34,26 @@ const ThreadSidebar = () => {
   const messages = threadMessages[selectedThreadParent._id] || [];
 
   return (
-    <div className="w-80 border-l border-base-300 flex flex-col h-full">
+    <div className="w-80 border-l border-base-300 flex flex-col h-full relative">
       {/* Thread Header */}
       <div className="p-4 border-b border-base-300 flex justify-between items-center">
         <h3 className="font-semibold">Thread</h3>
-        <button 
-          onClick={closeThread}
-          className="btn btn-sm btn-ghost btn-circle"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* AI Summary button */}
+          <button 
+            className={`btn btn-ghost btn-sm btn-circle ${isAISummaryOpen && summaryMode === "thread" ? 'text-primary' : ''}`}
+            title="Thread AI Summary"
+            onClick={() => toggleAISummary("thread")}
+          >
+            <Sparkles size={18} />
+          </button>
+          <button 
+            onClick={closeThread}
+            className="btn btn-sm btn-ghost btn-circle"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Original Message */}
@@ -154,6 +168,8 @@ const ThreadSidebar = () => {
         )}
         <div ref={messageEndRef} />
       </div>
+      
+      {/* We don't need to render AISummaryPanel here anymore as it will be rendered in HomePage */}
       
       {/* Thread Reply Input */}
       <div className="mt-auto sticky bottom-0 bg-base-100 border-t border-base-300 p-3">
