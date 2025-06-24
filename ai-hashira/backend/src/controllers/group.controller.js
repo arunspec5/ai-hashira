@@ -347,8 +347,11 @@ export const getGroupMessages = async (req, res) => {
       return res.status(403).json({ error: "You are not a member of this group" });
     }
 
-    // Get messages for the group
-    const messages = await Message.find({ groupId: id })
+    // Get messages for the group, excluding thread replies
+    const messages = await Message.find({ 
+      groupId: id,
+      isThreadReply: { $ne: true } // Exclude thread replies
+    })
       .populate("senderId", "fullName profilePic")
       .sort({ createdAt: 1 });
 

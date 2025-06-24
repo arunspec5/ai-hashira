@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useGroupChatStore } from "../store/useGroupChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
@@ -19,7 +19,9 @@ const GroupChatContainer = () => {
     unsubscribeFromGroupMessages,
     startTyping,
     stopTyping,
-    typingUsers
+    typingUsers,
+    threadCounts,
+    getThreadCount
   } = useGroupChatStore();
   
   const { authUser } = useAuthStore();
@@ -27,7 +29,25 @@ const GroupChatContainer = () => {
   const [showMembersList, setShowMembersList] = useState(false);
   
   // Get messages for the selected group
-  const messages = groupMessages[selectedGroup?._id] || [];
+  const rawMessages = groupMessages[selectedGroup?._id] || [];
+  
+  // Deduplicate messages by ID and filter out thread replies
+  const messages = useMemo(() => {
+    const uniqueMessages = [];
+    const messageIds = new Set();
+    
+    for (const message of rawMessages) {
+      // Skip thread replies - they should only appear in the thread view
+      if (message.isThreadReply) continue;
+      
+      if (!messageIds.has(message._id)) {
+        messageIds.add(message._id);
+        uniqueMessages.push(message);
+      }
+    }
+    
+    return uniqueMessages;
+  }, [rawMessages]);
   
   // Get typing users for the selected group
   const groupTypingUsers = typingUsers[selectedGroup?._id] || {};
@@ -50,6 +70,13 @@ const GroupChatContainer = () => {
   useEffect(() => {
     if (selectedGroup) {
       subscribeToGroupMessages();
+      
+      // Fetch thread counts for all messages
+      if (messages.length > 0) {
+        messages.forEach(message => {
+          getThreadCount(message._id);
+        });
+      }
     }
     
     return () => {
@@ -69,20 +96,9 @@ const GroupChatContainer = () => {
     if (selectedGroup) {
       console.log('GroupChatContainer handleSendMessage:', { text, image: !!image });
       try {
-        // Check if we're replying to a thread
-        const { selectedThreadParent } = useGroupChatStore.getState();
-        if (selectedThreadParent) {
-          // This is a thread reply
-          await sendGroupMessage({ 
-            text, 
-            image, 
-            parentId: selectedThreadParent._id,
-            isThreadReply: true 
-          });
-        } else {
           // Normal message
           await sendGroupMessage({ text, image });
-        }
+      
       } catch (error) {
         console.error('Error sending group message:', error);
       }
@@ -173,7 +189,9 @@ const GroupChatContainer = () => {
                     className="hover:underline flex items-center gap-1"
                   >
                     <MessageCircleReply size={14} />
-                    Reply
+                    {threadCounts && threadCounts[message._id] > 0 ? 
+                      `${threadCounts[message._id]} ${threadCounts[message._id] === 1 ? 'reply' : 'replies'}` : 
+                      'Reply'}
                   </button>
                 </div>
               </div>

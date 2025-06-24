@@ -93,6 +93,7 @@ io.on("connection", (socket) => {
 
 // Helper function to emit a message to all members of a group
 export function emitToGroup(groupId, event, data) {
+  // Emit to all clients in the group room
   io.to(`group:${groupId}`).emit(event, data);
 }
 

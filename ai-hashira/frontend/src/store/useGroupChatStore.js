@@ -215,13 +215,9 @@ export const useGroupChatStore = create((set, get) => ({
     if (!selectedGroup) return;
 
     try {
+      // Just send the message but don't add it to the state
+      // It will be added when it comes back through the socket
       const res = await axiosInstance.post(`/groups/${selectedGroup._id}/messages`, messageData);
-      set(state => ({
-        groupMessages: {
-          ...state.groupMessages,
-          [selectedGroup._id]: [...(state.groupMessages[selectedGroup._id] || []), res.data]
-        }
-      }));
       return res.data;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send message");
@@ -232,13 +228,30 @@ export const useGroupChatStore = create((set, get) => ({
     const { selectedGroup } = get();
     if (!selectedGroup || !message.groupId) return;
 
+    // Skip thread replies - they should be handled by handleNewThreadMessage
+    if (message.isThreadReply) return;
+
     if (message.groupId === selectedGroup._id) {
-      set(state => ({
-        groupMessages: {
-          ...state.groupMessages,
-          [selectedGroup._id]: [...(state.groupMessages[selectedGroup._id] || []), message]
+      // Add the message from the socket
+      set(state => {
+        const currentMessages = state.groupMessages[selectedGroup._id] || [];
+        
+        // Check if this message already exists in the state
+        const messageExists = currentMessages.some(m => m._id === message._id);
+        
+        // Only add the message if it doesn't already exist
+        if (!messageExists) {
+          return {
+            groupMessages: {
+              ...state.groupMessages,
+              [selectedGroup._id]: [...currentMessages, message]
+            }
+          };
         }
-      }));
+        
+        // Return unchanged state if message already exists
+        return state;
+      });
     }
   },
 
@@ -249,6 +262,7 @@ export const useGroupChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
+    console.log("Subscribing to group messages and thread messages");
     socket.on("newGroupMessage", get().handleNewGroupMessage);
     socket.on("newThreadMessage", get().handleNewThreadMessage);
   },
@@ -269,6 +283,7 @@ export const useGroupChatStore = create((set, get) => ({
       isThreadOpen: true 
     });
     get().getThreadMessages(parentMessage._id);
+    get().getThreadCount(parentMessage._id);
   },
 
   closeThread: () => {
@@ -276,6 +291,33 @@ export const useGroupChatStore = create((set, get) => ({
       selectedThreadParent: null,
       isThreadOpen: false 
     });
+  },
+
+  threadCounts: {},
+
+  getThreadCount: async (messageId) => {
+    try {
+      // Check if we already have the count in the store
+      if (get().threadCounts[messageId]) {
+        return get().threadCounts[messageId];
+      }
+      
+      // If not, fetch it from the API - fix the API endpoint
+      const res = await axiosInstance.get(`/threads/${messageId}/count`);
+      
+      // Update the thread counts in the store
+      set(state => ({
+        threadCounts: {
+          ...state.threadCounts,
+          [messageId]: res.data.count
+        }
+      }));
+      
+      return res.data.count;
+    } catch (error) {
+      console.error("Error fetching thread count:", error);
+      return 0;
+    }
   },
 
   getThreadMessages: async (parentId) => {
@@ -290,8 +332,8 @@ export const useGroupChatStore = create((set, get) => ({
         return;
       }
       
-      // If no messages in store, fetch from API
-      const res = await axiosInstance.get(`/api/threads/${parentId}`);
+      // If no messages in store, fetch from API - fix the API endpoint
+      const res = await axiosInstance.get(`/threads/${parentId}`);
       console.log("Thread messages response:", res.data);
       
       set(state => ({
@@ -327,19 +369,19 @@ export const useGroupChatStore = create((set, get) => ({
       };
       
       console.log("Sending thread reply:", threadData);
-      const res = await axiosInstance.post(`/api/groups/${selectedGroup._id}/messages`, threadData);
+      // Fix the API endpoint - remove the /api prefix
+      const res = await axiosInstance.post(`/groups/${selectedGroup._id}/messages`, threadData);
       console.log("Thread reply response:", res.data);
       
-      // Add to thread messages
+      // Update the thread count
       set(state => ({
-        threadMessages: {
-          ...state.threadMessages,
-          [selectedThreadParent._id]: [
-            ...(state.threadMessages[selectedThreadParent._id] || []),
-            res.data
-          ]
+        threadCounts: {
+          ...state.threadCounts,
+          [selectedThreadParent._id]: (state.threadCounts[selectedThreadParent._id] || 0) + 1
         }
       }));
+      
+      // Don't add to thread messages here, it will be added when it comes back through the socket
       
       return res.data;
     } catch (error) {
@@ -350,18 +392,62 @@ export const useGroupChatStore = create((set, get) => ({
 
   handleNewThreadMessage: (message) => {
     const { selectedThreadParent } = get();
-    if (!selectedThreadParent || !message.parentId) return;
+    if (!message.parentId) return;
 
-    if (message.parentId === selectedThreadParent._id) {
-      set(state => ({
-        threadMessages: {
-          ...state.threadMessages,
-          [selectedThreadParent._id]: [
-            ...(state.threadMessages[selectedThreadParent._id] || []),
-            message
-          ]
+    console.log("Received thread message:", message);
+
+    // Update the thread count for this parent message
+    set(state => ({
+      threadCounts: {
+        ...state.threadCounts,
+        [message.parentId]: (state.threadCounts[message.parentId] || 0) + 1
+      }
+    }));
+
+    // If we have the thread open for this parent message, add the new message to the thread
+    if (selectedThreadParent && message.parentId === selectedThreadParent._id) {
+      console.log("Adding message to thread:", message);
+      set(state => {
+        const currentThreadMessages = state.threadMessages[selectedThreadParent._id] || [];
+        
+        // Check if this message already exists in the thread
+        const messageExists = currentThreadMessages.some(m => m._id === message._id);
+        
+        // Only add the message if it doesn't already exist
+        if (!messageExists) {
+          return {
+            threadMessages: {
+              ...state.threadMessages,
+              [selectedThreadParent._id]: [...currentThreadMessages, message]
+            }
+          };
         }
-      }));
+        
+        // Return unchanged state if message already exists
+        return state;
+      });
+    } else if (message.parentId) {
+      // Even if the thread isn't open, store the message for when it is opened
+      console.log("Storing thread message for later:", message);
+      set(state => {
+        const currentThreadMessages = state.threadMessages[message.parentId] || [];
+        
+        // Check if this message already exists in the thread
+        const messageExists = currentThreadMessages.some(m => m._id === message._id);
+        
+        // Only add the message if it doesn't already exist
+        if (!messageExists) {
+          return {
+            threadMessages: {
+              ...state.threadMessages,
+              [message.parentId]: [...currentThreadMessages, message]
+            }
+          };
+        }
+        
+        // Return unchanged state if message already exists
+        return state;
+      });
     }
   },
 
