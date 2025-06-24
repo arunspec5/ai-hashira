@@ -309,6 +309,34 @@ export const useGroupChatStore = create((set, get) => ({
   closeAISummary: () => {
     set({ isAISummaryOpen: false });
   },
+  
+  summaryPreferences: {
+    timeRange: "all",
+    topics: [],
+    detailLevel: "moderate"
+  },
+  
+  getSummaryPreferences: async () => {
+    try {
+      const res = await axiosInstance.get("/users/summary-preferences");
+      set({ summaryPreferences: res.data });
+      return res.data;
+    } catch (error) {
+      console.error("Failed to fetch summary preferences:", error);
+      return get().summaryPreferences; // Return current preferences on error
+    }
+  },
+  
+  updateSummaryPreferences: async (preferences) => {
+    try {
+      const res = await axiosInstance.put("/users/summary-preferences", preferences);
+      set({ summaryPreferences: res.data });
+      return res.data;
+    } catch (error) {
+      console.error("Failed to update summary preferences:", error);
+      return null;
+    }
+  },
 
   threadCounts: {},
 
