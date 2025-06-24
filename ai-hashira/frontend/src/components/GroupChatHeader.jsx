@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { X, Users, Settings, Info } from "lucide-react";
+import { X, Users, Settings, Info, Sparkles } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useGroupChatStore } from "../store/useGroupChatStore";
 import GroupSettingsModal from "./GroupSettingsModal";
 
 const GroupChatHeader = ({ onShowMembers }) => {
-  const { selectedGroup, setSelectedGroup } = useGroupChatStore();
+  const { selectedGroup, setSelectedGroup, toggleAISummary, isAISummaryOpen } = useGroupChatStore();
   const { authUser } = useAuthStore();
   const [showMembers, setShowMembers] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -57,6 +57,15 @@ const GroupChatHeader = ({ onShowMembers }) => {
               <Settings size={18} />
             </button>
           )}
+          
+          {/* AI Summary button */}
+          <button 
+            className={`btn btn-ghost btn-sm btn-circle ${isAISummaryOpen ? 'text-primary' : ''}`}
+            title="AI Summary"
+            onClick={toggleAISummary}
+          >
+            <Sparkles size={18} />
+          </button>
           
           {/* Group info button */}
           <button 

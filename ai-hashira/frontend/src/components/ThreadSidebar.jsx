@@ -51,7 +51,11 @@ const ThreadSidebar = () => {
                 src={
                   selectedThreadParent.senderId === authUser._id
                     ? authUser.profilePic || "/avatar.png"
-                    : selectedGroup.members.find(m => m._id === selectedThreadParent.senderId)?.profilePic || "/avatar.png"
+                    : typeof selectedThreadParent.senderId === 'object' && selectedThreadParent.senderId.profilePic
+                      ? selectedThreadParent.senderId.profilePic
+                      : selectedGroup.members.find(m => 
+                          m._id === (typeof selectedThreadParent.senderId === 'object' ? selectedThreadParent.senderId._id : selectedThreadParent.senderId)
+                        )?.profilePic || "/avatar.png"
                 }
                 alt="profile pic"
               />
@@ -61,7 +65,14 @@ const ThreadSidebar = () => {
             <div className="font-medium">
               {selectedThreadParent.senderId === authUser._id
                 ? "You"
-                : selectedGroup.members.find(m => m._id === selectedThreadParent.senderId)?.fullName || selectedGroup.members.find(m => m._id === selectedThreadParent.senderId)?.username || "User"}
+                : typeof selectedThreadParent.senderId === 'object' && selectedThreadParent.senderId.fullName
+                  ? selectedThreadParent.senderId.fullName
+                  : selectedGroup.members.find(m => 
+                      m._id === (typeof selectedThreadParent.senderId === 'object' ? selectedThreadParent.senderId._id : selectedThreadParent.senderId)
+                    )?.fullName || 
+                    selectedGroup.members.find(m => 
+                      m._id === (typeof selectedThreadParent.senderId === 'object' ? selectedThreadParent.senderId._id : selectedThreadParent.senderId)
+                    )?.username || "User"}
             </div>
             <div className="text-xs text-base-content/60">
               {formatMessageTime(selectedThreadParent.createdAt)}
@@ -96,7 +107,11 @@ const ThreadSidebar = () => {
                     src={
                       message.senderId === authUser._id
                         ? authUser.profilePic || "/avatar.png"
-                        : selectedGroup.members.find(m => m._id === message.senderId)?.profilePic || "/avatar.png"
+                        : typeof message.senderId === 'object' && message.senderId.profilePic
+                          ? message.senderId.profilePic
+                          : selectedGroup.members.find(m => 
+                              m._id === (typeof message.senderId === 'object' ? message.senderId._id : message.senderId)
+                            )?.profilePic || "/avatar.png"
                     }
                     alt="profile pic"
                   />
@@ -106,8 +121,14 @@ const ThreadSidebar = () => {
                 <span className="font-medium mr-2">
                   {message.senderId === authUser._id
                     ? "You"
-                    : selectedGroup.members.find(m => m._id === message.senderId)?.fullName || 
-                      selectedGroup.members.find(m => m._id === message.senderId)?.username || "User"}
+                    : typeof message.senderId === 'object' && message.senderId.fullName
+                      ? message.senderId.fullName
+                      : selectedGroup.members.find(m => 
+                          m._id === (typeof message.senderId === 'object' ? message.senderId._id : message.senderId)
+                        )?.fullName || 
+                        selectedGroup.members.find(m => 
+                          m._id === (typeof message.senderId === 'object' ? message.senderId._id : message.senderId)
+                        )?.username || "User"}
                 </span>
                 <time className="text-xs opacity-50 ml-1">
                   {formatMessageTime(message.createdAt)}

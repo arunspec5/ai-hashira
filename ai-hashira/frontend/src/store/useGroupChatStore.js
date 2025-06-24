@@ -10,6 +10,7 @@ export const useGroupChatStore = create((set, get) => ({
   threadMessages: {},
   selectedThreadParent: null,
   isThreadOpen: false,
+  isAISummaryOpen: false,
   typingUsers: {},
   isGroupsLoading: false,
   isMessagesLoading: false,
@@ -241,6 +242,11 @@ export const useGroupChatStore = create((set, get) => ({
         
         // Only add the message if it doesn't already exist
         if (!messageExists) {
+          // Initialize thread count for this new message
+          setTimeout(() => {
+            get().getThreadCount(message._id);
+          }, 500); // Small delay to ensure message is saved
+          
           return {
             groupMessages: {
               ...state.groupMessages,
@@ -293,17 +299,27 @@ export const useGroupChatStore = create((set, get) => ({
     });
   },
 
+  // AI Summary functionality
+  toggleAISummary: () => {
+    set(state => ({
+      isAISummaryOpen: !state.isAISummaryOpen
+    }));
+  },
+
+  closeAISummary: () => {
+    set({ isAISummaryOpen: false });
+  },
+
   threadCounts: {},
 
   getThreadCount: async (messageId) => {
     try {
-      // Check if we already have the count in the store
-      if (get().threadCounts[messageId]) {
-        return get().threadCounts[messageId];
-      }
+      console.log(`Fetching thread count for message ${messageId}`);
       
-      // If not, fetch it from the API - fix the API endpoint
+      // Always fetch the latest count from the API
       const res = await axiosInstance.get(`/threads/${messageId}/count`);
+      
+      console.log(`Thread count for message ${messageId}:`, res.data.count);
       
       // Update the thread counts in the store
       set(state => ({
@@ -315,7 +331,7 @@ export const useGroupChatStore = create((set, get) => ({
       
       return res.data.count;
     } catch (error) {
-      console.error("Error fetching thread count:", error);
+      console.error(`Error fetching thread count for message ${messageId}:`, error);
       return 0;
     }
   },
@@ -394,7 +410,7 @@ export const useGroupChatStore = create((set, get) => ({
     const { selectedThreadParent } = get();
     if (!message.parentId) return;
 
-    console.log("Received thread message:", message);
+    console.log("Received thread message:", JSON.stringify(message, null, 2));
 
     // Update the thread count for this parent message
     set(state => ({

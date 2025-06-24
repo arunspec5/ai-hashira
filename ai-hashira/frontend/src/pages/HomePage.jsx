@@ -8,10 +8,18 @@ import NoChatSelected from "../components/NoChatSelected";
 import ChatContainer from "../components/ChatContainer";
 import GroupChatContainer from "../components/GroupChatContainer";
 import ThreadSidebar from "../components/ThreadSidebar";
+import AISummaryPanel from "../components/AISummaryPanel";
 
 const HomePage = () => {
   const { selectedUser } = useChatStore();
-  const { selectedGroup, subscribeToGroupEvents, unsubscribeFromGroupEvents, isThreadOpen } = useGroupChatStore();
+  const { 
+    selectedGroup, 
+    subscribeToGroupEvents, 
+    unsubscribeFromGroupEvents, 
+    isThreadOpen,
+    isAISummaryOpen,
+    closeAISummary
+  } = useGroupChatStore();
   const { socket } = useAuthStore();
   
   // Subscribe to group events when socket is available
@@ -47,10 +55,11 @@ const HomePage = () => {
           <div className="flex h-full rounded-lg overflow-hidden">
             <Sidebar />
             <div className="flex flex-1 overflow-hidden">
-              <div className={`flex-1 ${isThreadOpen ? 'border-r border-base-300' : ''}`}>
+              <div className={`flex-1 ${(isThreadOpen || isAISummaryOpen) ? 'border-r border-base-300' : ''}`}>
                 {renderChatContainer()}
               </div>
               {isThreadOpen && <ThreadSidebar />}
+              {isAISummaryOpen && <AISummaryPanel onClose={closeAISummary} />}
             </div>
           </div>
         </div>

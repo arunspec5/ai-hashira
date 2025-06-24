@@ -70,13 +70,6 @@ const GroupChatContainer = () => {
   useEffect(() => {
     if (selectedGroup) {
       subscribeToGroupMessages();
-      
-      // Fetch thread counts for all messages
-      if (messages.length > 0) {
-        messages.forEach(message => {
-          getThreadCount(message._id);
-        });
-      }
     }
     
     return () => {
@@ -85,6 +78,19 @@ const GroupChatContainer = () => {
       }
     };
   }, [selectedGroup?._id, subscribeToGroupMessages, unsubscribeFromGroupMessages]);
+  
+  // Separate effect to fetch thread counts when messages change
+  useEffect(() => {
+    if (selectedGroup && messages.length > 0) {
+      console.log('Fetching thread counts for', messages.length, 'messages');
+      const fetchCounts = async () => {
+        for (const message of messages) {
+          await getThreadCount(message._id);
+        }
+      };
+      fetchCounts();
+    }
+  }, [selectedGroup, messages, getThreadCount]);
   
   useEffect(() => {
     if (messageEndRef.current && messages.length > 0) {
@@ -189,7 +195,7 @@ const GroupChatContainer = () => {
                     className="hover:underline flex items-center gap-1"
                   >
                     <MessageCircleReply size={14} />
-                    {threadCounts && threadCounts[message._id] > 0 ? 
+                    {threadCounts && typeof threadCounts[message._id] === 'number' && threadCounts[message._id] > 0 ? 
                       `${threadCounts[message._id]} ${threadCounts[message._id] === 1 ? 'reply' : 'replies'}` : 
                       'Reply'}
                   </button>
