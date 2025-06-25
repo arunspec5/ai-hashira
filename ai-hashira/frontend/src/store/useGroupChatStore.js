@@ -2,6 +2,7 @@ import { create } from "zustand";
 import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
+import { useTopicStore } from "./useTopicStore";
 
 export const useGroupChatStore = create((set, get) => ({
   groups: [],
@@ -304,20 +305,40 @@ export const useGroupChatStore = create((set, get) => ({
 
   // AI Summary functionality
   toggleAISummary: (mode = "group") => {
-    set(state => {
-      // If summary is already open and we're switching modes, just change the mode
-      if (state.isAISummaryOpen && state.summaryMode !== mode) {
-        return {
-          isAISummaryOpen: true,
-          summaryMode: mode
-        };
-      }
-      
-      // Otherwise toggle the panel open/closed
-      return {
-        isAISummaryOpen: !state.isAISummaryOpen,
-        summaryMode: mode
-      };
+    // Get current state
+    const currentIsOpen = get().isAISummaryOpen;
+    const currentMode = get().summaryMode;
+    
+    // Close topic panel if open
+    const topicStore = useTopicStore.getState();
+    if (topicStore && topicStore.isTopicPanelOpen) {
+      topicStore.closeTopicPanel();
+    }
+    
+    // If already open with same mode, close it
+    if (currentIsOpen && currentMode === mode) {
+      set({ isAISummaryOpen: false });
+      return;
+    }
+    
+    // Otherwise open it with the specified mode
+    set({
+      isAISummaryOpen: true,
+      summaryMode: mode
+    });
+  },
+  
+  openAISummary: (mode = "group") => {
+    // Close topic panel if open
+    const topicStore = useTopicStore.getState();
+    if (topicStore && topicStore.isTopicPanelOpen) {
+      topicStore.closeTopicPanel();
+    }
+    
+    // Always open the summary panel
+    set({
+      isAISummaryOpen: true,
+      summaryMode: mode
     });
   },
 

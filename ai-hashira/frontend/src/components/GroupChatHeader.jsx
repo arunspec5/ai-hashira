@@ -6,7 +6,7 @@ import { useTopicStore } from "../store/useTopicStore";
 import GroupSettingsModal from "./GroupSettingsModal";
 
 const GroupChatHeader = ({ onShowMembers }) => {
-  const { selectedGroup, setSelectedGroup, toggleAISummary, isAISummaryOpen, summaryMode } = useGroupChatStore();
+  const { selectedGroup, setSelectedGroup, toggleAISummary, openAISummary, isAISummaryOpen, summaryMode } = useGroupChatStore();
   const { authUser } = useAuthStore();
   const { isTopicPanelOpen, openTopicPanel, closeTopicPanel } = useTopicStore();
   const [showMembers, setShowMembers] = useState(false);
@@ -73,7 +73,11 @@ const GroupChatHeader = ({ onShowMembers }) => {
           <button 
             className={`btn btn-ghost btn-sm btn-circle ${isAISummaryOpen && summaryMode === "group" ? 'text-primary' : ''}`}
             title="Group AI Summary"
-            onClick={() => toggleAISummary("group")}
+            onClick={() => {
+              console.log('AI Summary button clicked');
+              openAISummary("group");
+              console.log('After open - isAISummaryOpen:', useGroupChatStore.getState().isAISummaryOpen);
+            }}
           >
             <Sparkles size={18} />
           </button>

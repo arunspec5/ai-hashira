@@ -4,7 +4,8 @@ import { useAuthStore } from "../store/useAuthStore";
 import { formatMessageTime } from "../lib/utils";
 import { X, Send, Sparkles } from "lucide-react";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
-import AISummaryPanel from "./AISummaryPanel";
+// AISummaryPanel is now rendered in HomePage
+// import AISummaryPanel from "./AISummaryPanel";
 
 const ThreadSidebar = () => {
   const { 
@@ -15,6 +16,7 @@ const ThreadSidebar = () => {
     selectedGroup,
     sendThreadReply,
     toggleAISummary,
+    openAISummary,
     isAISummaryOpen,
     summaryMode
   } = useGroupChatStore();
@@ -34,7 +36,7 @@ const ThreadSidebar = () => {
   const messages = threadMessages[selectedThreadParent._id] || [];
 
   return (
-    <div className="w-80 border-l border-base-300 flex flex-col h-full relative">
+    <div className="w-full flex flex-col h-full relative">
       {/* Thread Header */}
       <div className="p-4 border-b border-base-300 flex justify-between items-center">
         <h3 className="font-semibold">Thread</h3>
@@ -43,7 +45,11 @@ const ThreadSidebar = () => {
           <button 
             className={`btn btn-ghost btn-sm btn-circle ${isAISummaryOpen && summaryMode === "thread" ? 'text-primary' : ''}`}
             title="Thread AI Summary"
-            onClick={() => toggleAISummary("thread")}
+            onClick={() => {
+              console.log('Thread AI Summary button clicked');
+              openAISummary("thread");
+              console.log('After open - isAISummaryOpen:', useGroupChatStore.getState().isAISummaryOpen);
+            }}
           >
             <Sparkles size={18} />
           </button>

@@ -279,17 +279,13 @@ const GroupChatContainer = () => {
       </div>
       </div>
       
-      {/* Side Panels */}
-      {isTopicPanelOpen && (
+      {/* Side Panels - only show when AI summary is not open */}
+      {isTopicPanelOpen && !isAISummaryOpen && (
         selectedTopic ? (
           <TopicMessageView />
         ) : (
           <TopicPanel onClose={closeTopicPanel} />
         )
-      )}
-      
-      {isAISummaryOpen && (
-        <AISummaryPanel onClose={() => useGroupChatStore.getState().toggleAISummary()} />
       )}
       
       {/* Group members list modal */}

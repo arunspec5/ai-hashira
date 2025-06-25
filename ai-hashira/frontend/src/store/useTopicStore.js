@@ -22,6 +22,12 @@ export const useTopicStore = create((set, get) => ({
   
   // Open/close topic panel
   openTopicPanel: () => {
+    // Close the AI summary panel if it's open
+    const { isAISummaryOpen, closeAISummary } = useGroupChatStore.getState();
+    if (isAISummaryOpen) {
+      closeAISummary();
+    }
+    
     set({ isTopicPanelOpen: true });
     const { selectedGroup } = useGroupChatStore.getState();
     if (selectedGroup) {

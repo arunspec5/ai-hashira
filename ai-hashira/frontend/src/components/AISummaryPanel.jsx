@@ -171,7 +171,7 @@ const AISummaryPanel = ({ onClose }) => {
   }, [summaryMode, selectedGroup?._id, selectedThreadParent?._id, summaryOptions]);
 
   return (
-    <div className="w-80 border-l border-base-300 flex flex-col h-full">
+    <div className="w-full flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-base-300 flex justify-between items-center">
         <div className="flex items-center gap-2">

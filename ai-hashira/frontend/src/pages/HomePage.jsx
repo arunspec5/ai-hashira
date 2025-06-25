@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useGroupChatStore } from "../store/useGroupChatStore";
 import { useAuthStore } from "../store/useAuthStore";
+import { useTopicStore } from "../store/useTopicStore";
 
 import Sidebar from "../components/Sidebar";
 import NoChatSelected from "../components/NoChatSelected";
@@ -20,6 +21,8 @@ const HomePage = () => {
     isAISummaryOpen,
     closeAISummary
   } = useGroupChatStore();
+  
+  const { isTopicPanelOpen } = useTopicStore();
   const { socket } = useAuthStore();
   
   // Subscribe to group events when socket is available
@@ -48,6 +51,8 @@ const HomePage = () => {
     return <NoChatSelected />;
   };
 
+  console.log("HomePage render - isAISummaryOpen:", isAISummaryOpen);
+  
   return (
     <div className="h-screen bg-base-200">
       <div className="flex items-center justify-center pt-20 px-4">
@@ -55,11 +60,24 @@ const HomePage = () => {
           <div className="flex h-full rounded-lg overflow-hidden">
             <Sidebar />
             <div className="flex flex-1 overflow-hidden">
-              <div className={`flex-1 ${(isThreadOpen || isAISummaryOpen) ? 'border-r border-base-300' : ''}`}>
+              {/* Main chat container - GroupChatContainer handles the TopicPanel internally */}
+              <div className={`flex-1 ${isThreadOpen ? 'border-r border-base-300' : ''}`}>
                 {renderChatContainer()}
               </div>
-              {isThreadOpen && <ThreadSidebar />}
-              {isAISummaryOpen && <AISummaryPanel onClose={closeAISummary} />}
+              
+              {/* Thread sidebar */}
+              {isThreadOpen && (
+                <div className="w-80 border-l border-base-300">
+                  <ThreadSidebar />
+                </div>
+              )}
+              
+              {/* AI Summary panel */}
+              {isAISummaryOpen && (
+                <div className="w-80 border-l border-base-300">
+                  <AISummaryPanel onClose={closeAISummary} />
+                </div>
+              )}
             </div>
           </div>
         </div>
