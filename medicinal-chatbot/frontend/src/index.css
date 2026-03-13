@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sage: #87a878;
+  --sage-dark: #5c7c4c;
+  --cream: #f5f0e8;
+  --warm-white: #faf8f5;
+  --ink: #2c2c2c;
+  --muted: #6b6b6b;
+}
+
+body {
+  font-family: "Outfit", system-ui, sans-serif;
+  background: linear-gradient(135deg, #faf8f5 0%, #e8f0e4 50%, #f0ebe3 100%);
+  min-height: 100vh;
+}

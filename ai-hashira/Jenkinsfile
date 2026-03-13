@@ -1,0 +1,97 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('Check Changes') {
+            steps {
+                script {
+                    // Get the changes between current and previous commit
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD^ HEAD || git diff --name-only origin/main...HEAD',
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Define folders to watch for changes
+                    def backendChanged = changedFiles.split('\n').any { it.startsWith('backend/') }
+                    def frontendChanged = changedFiles.split('\n').any { it.startsWith('frontend/') }
+                    
+                    // Set environment variables to track changes
+                    env.BACKEND_CHANGED = backendChanged.toString()
+                    env.FRONTEND_CHANGED = frontendChanged.toString()
+                    
+                    echo "Backend changes detected: ${env.BACKEND_CHANGED}"
+                    echo "Frontend changes detected: ${env.FRONTEND_CHANGED}"
+                }
+            }
+        }
+        
+        stage('Build Backend') {
+            when {
+                expression { return env.BACKEND_CHANGED == 'true' }
+            }
+            steps {
+                dir('backend') {
+                    echo "Building backend..."
+                    sh 'npm ci'
+                    sh 'npm run build'
+                }
+            }
+        }
+        
+        stage('Test Backend') {
+            when {
+                expression { return env.BACKEND_CHANGED == 'true' }
+            }
+            steps {
+                dir('backend') {
+                    echo "Testing backend..."
+                    sh 'npm test'
+                }
+            }
+        }
+        
+        stage('Build Frontend') {
+            when {
+                expression { return env.FRONTEND_CHANGED == 'true' }
+            }
+            steps {
+                dir('frontend') {
+                    echo "Building frontend..."
+                    sh 'npm ci'
+                    sh 'npm run build'
+                }
+            }
+        }
+        
+        stage('Test Frontend') {
+            when {
+                expression { return env.FRONTEND_CHANGED == 'true' }
+            }
+            steps {
+                dir('frontend') {
+                    echo "Testing frontend..."
+                    sh 'npm test'
+                }
+            }
+        }
+        
+        stage('Deploy') {
+            when {
+                expression { return env.BACKEND_CHANGED == 'true' || env.FRONTEND_CHANGED == 'true' }
+            }
+            steps {
+                echo "Deploying application..."
+                // Add your deployment steps here
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        failure {
+            echo "Pipeline failed!"
+        }
+    }
+}
